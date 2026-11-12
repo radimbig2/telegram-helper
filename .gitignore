@@ -1,0 +1,9 @@
+.env
+.deploy.env
+data/
+.venv/
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+server.md

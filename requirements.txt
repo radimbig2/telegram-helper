@@ -1,0 +1,5 @@
+aiogram>=3.31,<4
+SQLAlchemy[asyncio]>=2.0.57,<2.1
+aiosqlite>=0.22
+pydantic-settings>=2.16,<3
+tzdata
