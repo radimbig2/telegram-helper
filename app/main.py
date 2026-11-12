@@ -13,7 +13,7 @@ from aiogram.types import BotCommand, BotCommandScopeChat
 
 from app.animations import AnimationEngine, load_catalog
 from app.bot.middlewares import CacheMiddleware, ConnectionGuard, OwnerConnectionMiddleware
-from app.bot.routers import business, dot_commands, panel
+from app.bot.routers import business, dot_commands, membership, panel
 from app.config import Settings, get_settings
 from app.db import Database
 from app.services.cache import CacheService
@@ -54,7 +54,7 @@ def build_dispatcher(services: dict[str, Any]) -> Dispatcher:
     dp.business_message.outer_middleware(CacheMiddleware())
 
     # Order matters: dot commands must match before the catch-all handler in `business`.
-    dp.include_routers(panel.router, dot_commands.router, business.router)
+    dp.include_routers(membership.router, panel.router, dot_commands.router, business.router)
     return dp
 
 

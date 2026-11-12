@@ -1,6 +1,7 @@
 """Downloading and storing media files."""
 
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -22,9 +23,11 @@ class MediaInfo:
 
 
 def _ext_from_name(name: str | None, default: str) -> str:
-    if name and "." in name:
-        return name.rsplit(".", 1)[1][:10].lower()
-    return default
+    """File extension from a sender-provided name: letters and digits only, so it is always a plain suffix."""
+    if not name or "." not in name:
+        return default
+    ext = re.sub(r"[^a-z0-9]", "", name.rsplit(".", 1)[1].lower())[:10]
+    return ext or default
 
 
 @dataclass(frozen=True, slots=True)

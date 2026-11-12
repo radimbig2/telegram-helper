@@ -14,8 +14,13 @@ A personal companion bot built on **Telegram Business**:
 3. Fill in `.env` (see `.env.example`): `BOT_TOKEN`, `OWNER_ID`.
 4. Send `/start` to the bot.
 
-The bot reacts only to its owner (`OWNER_ID`) and only to the owner's business connection. If anyone else
-connects the bot to their account, those updates are ignored.
+The bot serves only its owner (`OWNER_ID`):
+
+- it never answers anyone else: other people's messages, commands and button presses in the bot chat are ignored;
+- dot commands work only when the owner sends them; the other person in a chat cannot trigger anything;
+- if someone connects the bot to their own Business account, those updates are ignored and nothing is cached;
+- if someone adds the bot to a group or channel, it leaves right away;
+- file names from senders are sanitized before anything is written to disk.
 
 ## Chat commands
 
@@ -86,7 +91,8 @@ app/
 │  ├─ routers/
 │  │  ├─ business.py        # connection, new messages, edits, deletions
 │  │  ├─ dot_commands.py    # the owner's .commands in chats
-│  │  └─ panel.py           # control panel in the bot chat
+│  │  ├─ panel.py           # control panel in the bot chat
+│  │  └─ membership.py      # leaves any group or channel the bot is added to
 │  ├─ views.py              # panel screens (text + keyboard)
 │  ├─ keyboards.py          # callback data, sections, pagination
 │  ├─ filters.py            # IsOwner, DotCommand
