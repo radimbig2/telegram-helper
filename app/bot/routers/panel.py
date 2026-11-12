@@ -16,7 +16,7 @@ from app.db import Database
 from app.services.cache import CacheService, ChatFlag
 from app.services.formatting import chat_name, esc, fmt_dt
 from app.services.media import MediaService
-from app.services.notifier import Notifier
+from app.services.notifier import Notifier, edit_text
 from app.services.settings_store import SETTINGS, SettingsStore
 from app.services.timezones import resolve_zone
 
@@ -157,6 +157,18 @@ async def on_show(callback: CallbackQuery, callback_data: Act, cache: CacheServi
     chat = await cache.chat(msg.chat_id)
     header = f"📤 👤 {esc(msg.from_name)} · 💬 {esc(chat_name(chat, msg.chat_id))} · 🕒 {fmt_dt(msg.date)}"
     await notifier.send_message_copy(msg, header)
+    await callback.answer()
+
+
+@router.callback_query(Act.filter(F.action == Action.EDIT_MEDIA))
+async def on_edit_media(callback: CallbackQuery, callback_data: Act, cache: CacheService, notifier: Notifier) -> None:
+    edit = await cache.edit(callback_data.id)
+    if edit is None or not edit.media_replaced:
+        await callback.answer("The edit is no longer in the cache", show_alert=True)
+        return
+    chat = await cache.chat(edit.message.chat_id)
+    await notifier.text(edit_text(edit.message, edit, chat))
+    await notifier.send_edit_media(edit)
     await callback.answer()
 
 

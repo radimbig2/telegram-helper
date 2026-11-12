@@ -4,6 +4,7 @@ A personal companion bot built on **Telegram Business**:
 
 - **Animated dot commands right in your chats**: type `.train` and the message turns into a moving train.
 - **Chat cache**: messages your contacts delete or edit don't disappear, the bot sends them to you.
+  If someone replaces a photo or file in a sent message, you get both the old and the new one.
 - **Control panel in the bot chat**: deleted messages, edits, media, search, per-chat settings, animation catalog.
 
 ## Setup

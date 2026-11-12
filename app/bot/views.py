@@ -87,13 +87,22 @@ async def edits(cache: CacheService, page: int) -> View:
         return _empty(title, "No edits yet.")
 
     chats = await cache.chats_by_ids({e.message.chat_id for e in data.items})
-    blocks = [
-        f"{_author_line(n, edit.message, chats)} · 🕒 {fmt_dt(edit.edited_at)}\n"
-        f"Before: <blockquote>{esc(truncate(edit.old_text, 200)) or '-'}</blockquote>\n"
-        f"After: <blockquote>{esc(truncate(edit.new_text, 200)) or '-'}</blockquote>"
-        for n, edit in enumerate(data.items, start=data.first_number)
-    ]
     kb = InlineKeyboardBuilder()
+    blocks = []
+    for n, edit in enumerate(data.items, start=data.first_number):
+        block = f"{_author_line(n, edit.message, chats)} · 🕒 {fmt_dt(edit.edited_at)}"
+        if edit.media_replaced:
+            old_icon = MEDIA_ICONS.get(edit.old_media_type or "", "📎")
+            new_icon = MEDIA_ICONS.get(edit.new_media_type or "", "📎")
+            block += f"\n🔁 {old_icon} → {new_icon} file replaced"
+            kb.button(text=f"🔁 {n}", callback_data=Act(action=Action.EDIT_MEDIA, id=edit.id))
+        if edit.old_text != edit.new_text or not edit.media_replaced:
+            block += (
+                f"\nBefore: <blockquote>{esc(truncate(edit.old_text, 200)) or '-'}</blockquote>\n"
+                f"After: <blockquote>{esc(truncate(edit.new_text, 200)) or '-'}</blockquote>"
+            )
+        blocks.append(block)
+    kb.adjust(5)
     add_pager(kb, Section.EDITS, page, data.pages)
     return f"{title}\n\n" + "\n\n".join(blocks), kb.as_markup()
 

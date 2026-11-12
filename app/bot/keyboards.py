@@ -23,6 +23,7 @@ class Section(StrEnum):
 class Action(StrEnum):
     NOOP = "noop"
     SHOW = "show"  # resend a cached message
+    EDIT_MEDIA = "edit_media"  # resend the files before/after a replacement
     CHAT = "chat"  # open a chat card
     CHAT_SAVE = "chat_save"
     CHAT_NOTIFY = "chat_notify"

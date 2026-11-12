@@ -166,15 +166,23 @@ class CacheService:
                 return None
 
             edit = Edit(message_pk=row.id, old_text=row.text, new_text=new_text)
-            s.add(edit)
-            row.text, row.is_edited = new_text, True
             if media_changed and info:
+                # The old file stays on disk (file names include file_unique_id), the edit keeps a link to it.
+                edit.old_media_type, edit.old_file_id, edit.old_media_path = row.media_type, row.file_id, row.media_path
+                edit.new_media_type, edit.new_file_id = info.type, info.file_id
                 row.media_type, row.file_id, row.file_unique_id = info.type, info.file_id, info.file_unique_id
                 row.media_path = None
+            s.add(edit)
+            row.text, row.is_edited = new_text, True
             await s.commit()
 
         if media_changed and self._store.get_bool("save_media"):
             await self._attach_media(row, message)
+            if row.media_path:
+                async with self._db.session() as s:
+                    await s.execute(update(Edit).where(Edit.id == edit.id).values(new_media_path=row.media_path))
+                    await s.commit()
+                edit.new_media_path = row.media_path
         return row, edit
 
     async def mark_deleted(self, chat_id: int, message_ids: list[int]) -> list[Message]:
@@ -264,6 +272,10 @@ class CacheService:
                 await s.commit()
             return chat
 
+    async def edit(self, pk: int) -> Edit | None:
+        async with self._db.session() as s:
+            return await s.get(Edit, pk, options=[selectinload(Edit.message)])
+
     async def message(self, pk: int) -> Message | None:
         async with self._db.session() as s:
             return await s.get(Message, pk)
@@ -341,4 +353,6 @@ class CacheService:
             chunk = paths[start : start + EVICTION_BATCH]
             async with self._db.session() as s:
                 await s.execute(update(Message).where(Message.media_path.in_(chunk)).values(media_path=None))
+                await s.execute(update(Edit).where(Edit.old_media_path.in_(chunk)).values(old_media_path=None))
+                await s.execute(update(Edit).where(Edit.new_media_path.in_(chunk)).values(new_media_path=None))
                 await s.commit()

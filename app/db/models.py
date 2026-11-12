@@ -69,7 +69,7 @@ class Message(Base):
 
 
 class Edit(Base):
-    """A single message edit: before -> after."""
+    """A single message edit: before -> after. Media columns are set only when the file was replaced."""
 
     __tablename__ = "edits"
 
@@ -77,9 +77,21 @@ class Edit(Base):
     message_pk: Mapped[int] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), index=True)
     old_text: Mapped[str] = mapped_column(Text, default="")
     new_text: Mapped[str] = mapped_column(Text, default="")
+
+    old_media_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    old_file_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    old_media_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    new_media_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    new_file_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    new_media_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
     edited_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
     message: Mapped[Message] = relationship(back_populates="edits")
+
+    @property
+    def media_replaced(self) -> bool:
+        return self.new_media_type is not None
 
 
 class Setting(Base):

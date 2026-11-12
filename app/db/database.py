@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import event, text
+from sqlalchemy import Connection, event, inspect, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.db.models import Base
@@ -36,6 +36,17 @@ _FTS_DDL = [
 ]
 
 
+def _add_missing_columns(conn: Connection) -> None:
+    """Lightweight migration: adds new nullable columns to tables created by an older version."""
+    inspector = inspect(conn)
+    for table in Base.metadata.sorted_tables:
+        existing = {column["name"] for column in inspector.get_columns(table.name)}
+        for column in table.columns:
+            if column.name not in existing:
+                column_type = column.type.compile(conn.dialect)
+                conn.exec_driver_sql(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {column_type}")
+
+
 class Database:
     def __init__(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -54,6 +65,7 @@ class Database:
     async def create_schema(self) -> None:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(_add_missing_columns)
             for ddl in _FTS_DDL:
                 await conn.execute(text(ddl))
 
