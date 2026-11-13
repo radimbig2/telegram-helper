@@ -10,7 +10,7 @@ from itertools import islice
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 
-from app.animations.registry import Animation
+from app.animations.registry import Animation, Frame
 
 log = logging.getLogger(__name__)
 
@@ -51,17 +51,19 @@ class AnimationEngine:
             log.error("Animation failed", exc_info=task.exception())
 
     async def _run(self, anim: Animation, args: str, target: Target) -> None:
-        frames = [f if anim.html else escape(f, quote=False) for f in islice(anim.frames(args), self._max_frames)]
+        # Frames are pulled lazily, each one only after the previous pause: a generator may look at
+        # the clock (a countdown stays exact even if Telegram's flood control delayed an edit).
         last: str | None = None
-        for i, frame in enumerate(frames):
+        for item in islice(anim.frames(args), anim.max_frames or self._max_frames):
+            text, hold = (item.text, item.hold) if isinstance(item, Frame) else (item, anim.interval)
+            frame = text if anim.html else escape(text, quote=False)
             if not frame.strip() or frame == last:
                 continue
-            if i > 0:
-                await asyncio.sleep(anim.interval)
-            shown = await self.replace(target, frame) if i == 0 else await self._edit(target, frame)
+            shown = await self._edit(target, frame) if last is not None else await self.replace(target, frame)
             if not shown:
                 return
             last = frame
+            await asyncio.sleep(hold)
 
     async def replace(self, target: Target, html: str) -> bool:
         """Replaces the message text once (edit, or delete-and-resend as a fallback)."""

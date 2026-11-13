@@ -88,6 +88,11 @@ def wave(args: str) -> Iterator[str]:
     yield f"👋 {args or 'Hi!'}"
 ```
 
+A generator may yield `Frame(text, hold)` instead of a string to set its own pause before the next frame,
+and `@animation(..., max_frames=N)` raises the frame limit. Frames are pulled lazily, right after the
+previous pause, so a generator can look at the clock: this is how `.countdown` stays exact even when
+Telegram's flood control delays an edit.
+
 New animations are checked by the tests automatically, nothing to add there.
 
 ## Running locally

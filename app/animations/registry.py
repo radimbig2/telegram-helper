@@ -18,7 +18,16 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-FrameFn = Callable[[str], Iterable[str]]
+
+@dataclass(frozen=True, slots=True)
+class Frame:
+    """A frame with its own timing: `hold` seconds until the next frame (instead of the animation's interval)."""
+
+    text: str
+    hold: float
+
+
+FrameFn = Callable[[str], Iterable[str | Frame]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +40,7 @@ class Animation:
     html: bool = False  # True: frames are already HTML; False: the engine escapes the text
     usage: str = ""
     aliases: tuple[str, ...] = ()
+    max_frames: int | None = None  # overrides ANIMATION_MAX_FRAMES for long animations such as a countdown
 
 
 _REGISTRY: dict[str, Animation] = {}
@@ -58,11 +68,14 @@ def animation(
     html: bool = False,
     usage: str = "",
     aliases: tuple[str, ...] = (),
+    max_frames: int | None = None,
 ) -> Callable[[FrameFn], FrameFn]:
     """Decorator that registers a frame generator."""
 
     def decorator(fn: FrameFn) -> FrameFn:
-        register(Animation(command, title, description, fn, interval, html, usage or f".{command}", aliases))
+        register(
+            Animation(command, title, description, fn, interval, html, usage or f".{command}", aliases, max_frames)
+        )
         return fn
 
     return decorator

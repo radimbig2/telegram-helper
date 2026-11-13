@@ -27,7 +27,7 @@ Docker Compose · pytest · mypy
 | `.magic text` | text emerges from random symbols |
 | `.loading [what]` | progress bar from 0 to 100% |
 | `.hack [target]` | fake hack with scrolling code |
-| `.countdown 5` | countdown and 💥 |
+| `.countdown 5m [text]` | ⏳ a real-time countdown up to an hour (`300`, `5m`, `1:30`, `1h`), then 💥 |
 | `.explosion [text]` / `.boom` | 💣 a fuse burns down and the bomb goes off |
 | `.rainbow [text]` | 🌈 rainbow stripes flow across the message |
 | `.rocket [text]` | 🚀 a rocket takes off |

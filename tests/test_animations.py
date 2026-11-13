@@ -6,7 +6,7 @@ from itertools import islice
 
 import pytest
 
-from app.animations import Animation, all_animations, load_catalog
+from app.animations import Animation, Frame, all_animations, load_catalog
 from app.config import Settings
 
 load_catalog()  # parametrization below runs at collection time, before fixtures
@@ -17,9 +17,14 @@ ARGS = ["", "hello", "<b>&{text}</b>", "x" * 300, "多言語 文字 🎉"]
 SEEDS = range(5)
 
 
+def _limit(anim: Animation) -> int:
+    return anim.max_frames or MAX_FRAMES
+
+
 def _frames(anim: Animation, args: str) -> list[str]:
     # one frame past the limit, to notice animations that would be cut off
-    return list(islice(anim.frames(args), MAX_FRAMES + 1))
+    items = islice(anim.frames(args), _limit(anim) + 1)
+    return [item.text if isinstance(item, Frame) else item for item in items]
 
 
 def test_catalog_is_loaded() -> None:
@@ -34,7 +39,7 @@ def test_frames_fit_telegram(anim: Animation, args: str) -> None:
         random.seed(seed)
         frames = _frames(anim, args)
         assert frames, "at least one frame"
-        assert len(frames) <= MAX_FRAMES, "would be cut off by ANIMATION_MAX_FRAMES"
+        assert len(frames) <= _limit(anim), "would be cut off by the frame limit"
         assert all(frame.strip() for frame in frames), "empty frames are skipped by the engine"
         assert all(len(frame) <= TELEGRAM_TEXT_LIMIT for frame in frames)
         assert len(set(frames)) > 1, "an animation must change"

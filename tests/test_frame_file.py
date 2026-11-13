@@ -79,4 +79,5 @@ def test_catalog_frame_files_are_registered() -> None:
     flip = get_animation("flip")
     assert flip is not None
     assert list(flip.frames(""))[-1] == "┬─┬ ノ( ゜-゜ノ)"
-    assert list(flip.frames("done"))[-1].endswith("done")
+    last = list(flip.frames("done"))[-1]
+    assert isinstance(last, str) and last.endswith("done")
