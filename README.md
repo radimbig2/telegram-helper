@@ -1,27 +1,21 @@
 # Telegram Helper
 
-A personal companion bot built on **Telegram Business**:
+A personal companion bot built on **Telegram Business**. It works inside your own chats:
 
-- **Animated dot commands right in your chats**: type `.train` and the message turns into a moving train.
-- **Chat cache**: messages your contacts delete or edit don't disappear, the bot sends them to you.
-  If someone replaces a photo or file in a sent message, you get both the old and the new one.
-- **Control panel in the bot chat**: deleted messages, edits, media, search, per-chat settings, animation catalog.
+- **Animated dot commands**: type `.train` and your message turns into a moving train.
+- **Deleted and edited messages are kept**: when a contact deletes or edits a message, the bot sends you
+  the original, including photos, videos and files. If someone replaces a photo in a sent message,
+  you get both the old and the new one.
+- **Time in everyone's time zone**: `.time 15:00 Warsaw` shows each reader the time in their own zone.
+- **Control panel in the bot chat**: deleted messages, edit history, media, full-text search,
+  per-chat settings and an animation catalog with previews.
+- **Private by design**: the bot serves only you. Other people get no answers and cannot trigger anything,
+  and the bot leaves any group it is added to.
 
-## Setup
+## Stack
 
-1. Create a bot with @BotFather and enable *Bot Settings → Business Mode*.
-2. In Telegram (requires **Premium**): *Settings → Telegram Business → Chatbots*, add the bot, give it access
-   to your chats and the rights to **reply to messages** and **delete sent messages**.
-3. Fill in `.env` (see `.env.example`): `BOT_TOKEN`, `OWNER_ID`.
-4. Send `/start` to the bot.
-
-The bot serves only its owner (`OWNER_ID`):
-
-- it never answers anyone else: other people's messages, commands and button presses in the bot chat are ignored;
-- dot commands work only when the owner sends them; the other person in a chat cannot trigger anything;
-- if someone connects the bot to their own Business account, those updates are ignored and nothing is cached;
-- if someone adds the bot to a group or channel, it leaves right away;
-- file names from senders are sanitized before anything is written to disk.
+Python 3.12 · [aiogram 3](https://aiogram.dev) · SQLite (SQLAlchemy 2 async, FTS5 full-text search) ·
+Docker Compose · pytest · mypy
 
 ## Chat commands
 
@@ -49,157 +43,56 @@ The bot serves only its owner (`OWNER_ID`):
 | `.info` *(as a reply)* | message and author details, sent to the bot chat |
 | `.help` | command list, sent to the bot chat |
 
-### `.time`
+Utility commands (`.save`, `.info`, `.stop`, `.help`) are removed from the chat right away, so the other
+person does not see them. Text that starts with a dot but is not a known command is left untouched.
 
-The command message is replaced with Telegram's date-time entity: it stores an exact moment, and every reader's
-app shows it in their own time zone.
+**`.time` examples:**
 
-- `.time 15:00`: today, in your time zone (*Settings → 🕒 Time zone* in the panel).
-- `.time 12:00 Warsaw`: the time is taken in Warsaw; typos are fine (`warshaw`), as are `Europe/Warsaw` and `UTC+2`.
-- `.time 12.02.2026 15:00 New York team call`: date, time, city, and a note shown above the time.
-
-Apps that don't support the entity show plain text such as `12.02.2026 15:00 UTC+01:00`
-(Telegram allows at most 31 characters inside the entity).
-
-Utility commands (`.save`, `.info`, `.stop`, `.help`) are deleted from the chat right away so the other person
-does not see them. Text that starts with a dot but is not a known command is left untouched.
+- `.time 15:00`: today, in your time zone (set in the panel: *Settings → 🕒 Time zone*);
+- `.time 12:00 Warsaw`: the time in Warsaw; typos are fine (`warshaw`), as are `Europe/Warsaw` and `UTC+2`;
+- `.time 12.02.2026 15:00 New York team call`: a date, a city and a note shown above the time.
 
 ## Bot chat panel
 
-`/menu`: 🗑 Deleted · ✏️ Edits · 🖼 Media · 🔍 Search · 💬 Chats · 🎬 Animations · ⚙️ Settings · 📊 Status
-`/search word`: full-text search over the cache.
+- `/menu`: 🗑 Deleted · ✏️ Edits · 🖼 Media · 🔍 Search · 💬 Chats · 🎬 Animations · ⚙️ Settings · 📊 Status
+- `/search word`: search over the saved messages.
 
-## Cache size
+## Installation
 
-The cache (media files + database) lives on disk in `./data` and is limited by `CACHE_LIMIT_MB` in `.env`
-(default `10240`, i.e. 10 GB). The bot checks it every 10 minutes; when the limit is exceeded it frees space
-down to 90% of it: first the oldest media files (the message text stays), then, if needed, the oldest messages.
-Current usage is shown in *📊 Status*.
+You need Telegram **Premium** (for Telegram Business) and a machine with Docker.
 
-## Telegram limitations
+1. Create a bot with [@BotFather](https://t.me/BotFather) and turn on *Bot Settings → Business Mode*.
+2. Clone the repository and create `.env` from the example:
 
-- **View-once / self-destructing photos** are usually not provided by the Bot API. The bot downloads every media
-  file it receives; for view-once media you can try `.save` as a reply, but there is no guarantee.
-- The Bot API cannot download files larger than **20 MB**; only a record of them is kept.
-- If your command message cannot be edited, the bot deletes it and plays the animation in a new message sent
-  on your behalf.
+   ```bash
+   cp .env.example .env
+   ```
 
-## Architecture
+   Set `BOT_TOKEN` (from BotFather) and `OWNER_ID` (your Telegram user ID). The other settings are optional:
+   `CACHE_LIMIT_MB` (disk space for the cache, 10 GB by default) and `TIMEZONE` (default time zone for `.time`).
+3. Start the bot:
 
-```
-app/
-├─ main.py                  # wires services and routers, starts polling
-├─ config.py                # settings from .env
-├─ bot/
-│  ├─ routers/
-│  │  ├─ business.py        # connection, new messages, edits, deletions
-│  │  ├─ dot_commands.py    # the owner's .commands in chats
-│  │  ├─ panel.py           # control panel in the bot chat
-│  │  └─ membership.py      # leaves any group or channel the bot is added to
-│  ├─ views.py              # panel screens (text + keyboard)
-│  ├─ keyboards.py          # callback data, sections, pagination
-│  ├─ filters.py            # IsOwner, DotCommand
-│  └─ middlewares.py        # foreign-connection guard, automatic message caching
-├─ animations/
-│  ├─ engine.py             # plays frames by editing a message
-│  ├─ registry.py           # registration and catalog loading
-│  ├─ frame_file.py         # JSON frame files: format and validation
-│  └─ catalog/              # the animations (*.json and *.py), loaded automatically
-├─ services/
-│  ├─ cache.py              # saving, edits, deletions, queries, size limit
-│  ├─ media.py              # file downloads
-│  ├─ notifier.py           # notifications to the owner
-│  ├─ settings_store.py     # settings changed from the panel
-│  └─ formatting.py         # HTML formatting helpers
-└─ db/                      # SQLite + FTS5, models
-```
+   ```bash
+   docker compose up -d --build
+   ```
 
-Update flow: update → `OwnerConnectionMiddleware` (owner's connection only) → `CacheMiddleware` (save) → router → services.
+4. In Telegram: *Settings → Telegram Business → Chatbots*, add the bot, give it access to your chats and the
+   rights to **reply to messages** and **delete sent messages**.
+5. Send `/start` to the bot.
 
-### Adding an animation
+Data (database and media) is stored in `./data` and survives restarts and updates.
+Logs: `docker compose logs -f`.
 
-Everything in `app/animations/catalog/` is loaded automatically: `.wave` works and a preview button
-appears in the panel. Pick the kind that fits.
+To deploy to your own server over SSH, copy `.deploy.env.example` to `.deploy.env`, set `DEPLOY_HOST`
+and run `./deploy.sh`.
 
-**A fixed list of frames: a JSON file, no code.** `app/animations/catalog/wave.json`
-(the file name must match the command):
+## Good to know
 
-```json
-{
-  "command": "wave",
-  "title": "Wave",
-  "description": "Waves a hand",
-  "interval": 0.5,
-  "default_text": "Hi!",
-  "frames": ["👋", "🖐", "👋", "🖐", ["two-line", "frame"], "👋 {text}"]
-}
-```
+- **Cache size**: when the cache grows past `CACHE_LIMIT_MB`, the oldest media files are removed first
+  (the message text stays), then the oldest messages. Current usage is shown in *📊 Status*.
+- **View-once photos** are usually not delivered to bots by Telegram, so they may not be saved.
+- **Files larger than 20 MB** cannot be downloaded by bots; the bot keeps only a record of them.
 
-- `{text}` is replaced with the text after the command (`.wave hello`), or with `default_text`.
-  A frame with `{text}` is skipped when both are empty.
-- A frame is a string, or a list of strings for a multi-line frame.
-- Frames are plain text: the user's text is escaped, so it cannot break the markup.
-- Optional keys: `aliases`, `usage` (derived automatically). Unknown keys and typos fail at startup.
+## Development
 
-Examples: `flip.json`, `clock.json`, `moon.json`.
-
-**Computed frames: a Python generator.** When the frames depend on randomness, on the user's text,
-or are drawn by a formula (`train`, `dice`, `type`, `hack`, ...):
-
-```python
-from collections.abc import Iterator
-
-from app.animations.registry import animation
-
-
-@animation("wave", "Wave", "Waves a hand", interval=0.5)
-def wave(args: str) -> Iterator[str]:
-    for hand in ["👋", "🖐", "👋", "🖐"]:
-        yield hand
-    yield f"👋 {args or 'Hi!'}"
-```
-
-New animations are checked by the tests automatically (see below), nothing to add there.
-
-## Running
-
-Locally:
-
-```bash
-python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
-.venv/Scripts/python -m app.main
-```
-
-Docker:
-
-```bash
-docker compose up -d --build
-```
-
-Tests and type checks:
-
-```bash
-.venv/Scripts/pip install -r requirements-dev.txt
-.venv/Scripts/python -m pytest
-.venv/Scripts/python -m mypy
-```
-
-The tests run the real dispatcher against a fake Telegram that records every Bot API call, so nothing
-is sent anywhere and the real `.env` is never read. They cover:
-
-- every animation in the catalog, with empty, long, Unicode and markup input: frame count, Telegram's
-  text limit, escaping;
-- the animation engine: editing, the delete-and-resend fallback, the frame limit, `.stop`;
-- security: outsiders get no answers and change nothing, foreign Business accounts are ignored;
-- the cache: edits, replaced media, the size limit, database migrations;
-- `.time`: parsing, time zones and daylight saving time.
-
-Deploy to the server from your machine (Git Bash on Windows). Copy `.deploy.env.example` to `.deploy.env`
-and set `DEPLOY_HOST`, then run:
-
-```bash
-./deploy.sh
-```
-
-The code goes to `/srv/telegramHelper`, `.env` is uploaded on the first run, the database in `./data` is preserved.
-Server logs: `cd /srv/telegramHelper && docker compose logs -f`.
+Project structure, adding animations and running the tests: see [DEVELOPMENT.md](DEVELOPMENT.md).
