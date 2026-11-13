@@ -24,29 +24,51 @@ class Target:
     business_connection_id: str | None = None
 
 
+MAX_PER_CHAT = 3  # every animation edits its message about twice a second; more at once hits flood control
+
+
 class AnimationEngine:
-    def __init__(self, bot: Bot, max_frames: int) -> None:
+    def __init__(self, bot: Bot, max_frames: int, max_per_chat: int = MAX_PER_CHAT) -> None:
         self._bot = bot
         self._max_frames = max_frames
-        self._tasks: dict[int, asyncio.Task[None]] = {}
+        self._max_per_chat = max_per_chat
+        # chat id -> message id -> task, oldest first
+        self._tasks: dict[int, dict[int, asyncio.Task[None]]] = {}
 
-    def start(self, anim: Animation, args: str, target: Target) -> None:
-        """Starts an animation in the background. Any previous animation in this chat is stopped."""
-        self.stop(target.chat_id)
-        task = asyncio.create_task(self._run(anim, args, target), name=f"anim:{anim.command}:{target.chat_id}")
-        self._tasks[target.chat_id] = task
-        task.add_done_callback(partial(self._forget, target.chat_id))
+    def start(self, anim: Animation, args: str, target: Target) -> asyncio.Task[None]:
+        """Starts an animation in the background.
+
+        Animations in different messages of a chat run in parallel. When the chat already has
+        `max_per_chat` of them, the oldest one is stopped.
+        """
+        chat_id, message_id = target.chat_id, target.message_id
+        running = self._tasks.setdefault(chat_id, {})
+        if old := running.pop(message_id, None):
+            old.cancel()
+        while len(running) >= self._max_per_chat:
+            running.pop(next(iter(running))).cancel()
+
+        task = asyncio.create_task(self._run(anim, args, target), name=f"anim:{anim.command}:{chat_id}:{message_id}")
+        running[message_id] = task
+        task.add_done_callback(partial(self._forget, chat_id, message_id))
+        return task
+
+    def running(self, chat_id: int) -> int:
+        return len(self._tasks.get(chat_id, {}))
 
     def stop(self, chat_id: int) -> bool:
-        task = self._tasks.pop(chat_id, None)
-        if task and not task.done():
+        """Stops every animation in the chat. Returns True if something was running."""
+        running = self._tasks.pop(chat_id, {})
+        for task in running.values():
             task.cancel()
-            return True
-        return False
+        return bool(running)
 
-    def _forget(self, chat_id: int, task: asyncio.Task[None]) -> None:
-        if self._tasks.get(chat_id) is task:
-            del self._tasks[chat_id]
+    def _forget(self, chat_id: int, message_id: int, task: asyncio.Task[None]) -> None:
+        running = self._tasks.get(chat_id, {})
+        if running.get(message_id) is task:
+            del running[message_id]
+            if not running:
+                self._tasks.pop(chat_id, None)
         if not task.cancelled() and task.exception():
             log.error("Animation failed", exc_info=task.exception())
 

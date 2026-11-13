@@ -34,9 +34,7 @@ def _anim(name: str, interval: float = 0) -> Animation:
 
 
 async def _play(engine: AnimationEngine, anim: Animation, args: str = "") -> None:
-    engine.start(anim, args, Target(FRIEND_CHAT.id, 1, "mine"))
-    task = engine._tasks[FRIEND_CHAT.id]
-    await asyncio.wait_for(task, timeout=5)
+    await asyncio.wait_for(engine.start(anim, args, Target(FRIEND_CHAT.id, 1, "mine")), timeout=5)
 
 
 def _edits(telegram: FakeTelegram) -> list[str]:
@@ -86,3 +84,46 @@ async def test_generators_play_to_the_end(bot: Bot, telegram: FakeTelegram, name
     anim = _anim(name)
     await _play(AnimationEngine(bot, 40), anim, "ok")
     assert len(_edits(telegram)) >= 2
+
+
+async def test_animations_in_different_messages_run_in_parallel(bot: Bot, telegram: FakeTelegram) -> None:
+    engine = AnimationEngine(bot, 40)
+    slow = _anim("moon", interval=0.05)
+    first = engine.start(slow, "", Target(FRIEND_CHAT.id, 1))
+    second = engine.start(slow, "", Target(FRIEND_CHAT.id, 2))
+    await asyncio.wait_for(asyncio.gather(first, second), timeout=5)
+    edited = [params["message_id"] for name, params in telegram.calls if name == "EditMessageText"]
+    assert edited.count(1) == edited.count(2) == 17
+    assert edited[:2] == [1, 2], "both play at the same time, not one after another"
+
+
+async def test_oldest_animation_stops_over_the_chat_limit(bot: Bot) -> None:
+    engine = AnimationEngine(bot, 40, max_per_chat=3)
+    slow = _anim("moon", interval=0.05)
+    tasks = [engine.start(slow, "", Target(FRIEND_CHAT.id, message_id)) for message_id in range(1, 5)]
+    await asyncio.sleep(0)
+    assert tasks[0].cancelled() or tasks[0].cancelling()
+    assert engine.running(FRIEND_CHAT.id) == 3
+    assert engine.start(slow, "", Target(FRIEND_CHAT.id + 1, 1)) and engine.running(FRIEND_CHAT.id + 1) == 1
+    engine.stop(FRIEND_CHAT.id + 1)
+
+
+async def test_restarting_in_the_same_message_replaces_the_animation(bot: Bot) -> None:
+    engine = AnimationEngine(bot, 40)
+    old = engine.start(_anim("moon", interval=0.05), "", Target(FRIEND_CHAT.id, 1))
+    new = engine.start(_anim("clock", interval=0.05), "", Target(FRIEND_CHAT.id, 1))
+    await asyncio.sleep(0)
+    assert old.cancelling() and engine.running(FRIEND_CHAT.id) == 1
+    assert engine.stop(FRIEND_CHAT.id) is True
+    await asyncio.sleep(0)
+    assert new.cancelled()
+
+
+async def test_stop_stops_every_animation_in_the_chat(bot: Bot, telegram: FakeTelegram) -> None:
+    engine = AnimationEngine(bot, 40)
+    tasks = [engine.start(_anim("moon", interval=0.05), "", Target(FRIEND_CHAT.id, m)) for m in (1, 2, 3)]
+    await asyncio.sleep(0.07)
+    assert engine.stop(FRIEND_CHAT.id) is True
+    await asyncio.sleep(0)
+    assert all(task.cancelled() for task in tasks)
+    assert engine.running(FRIEND_CHAT.id) == 0

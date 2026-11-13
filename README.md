@@ -38,11 +38,12 @@ Docker Compose · pytest · mypy
 | `.8ball question` | magic 8-ball |
 | `.dice` / `.roll` | dice roll |
 | `.time [date] HH:MM [city] [note]` | 🕒 a time everyone sees in their own time zone |
-| `.stop` | stop the animation in this chat |
+| `.stop` | stop all animations in this chat |
 | `.save` *(as a reply)* | save the message and its media, send it to the bot chat |
 | `.info` *(as a reply)* | message and author details, sent to the bot chat |
 | `.help` | command list, sent to the bot chat |
 
+Up to 3 animations can play in one chat at once, each in its own message; a fourth one stops the oldest.
 Utility commands (`.save`, `.info`, `.stop`, `.help`) are removed from the chat right away, so the other
 person does not see them. Text that starts with a dot but is not a known command is left untouched.
 

@@ -8,13 +8,15 @@ from app.animations.registry import animation
 NOISE = "!@#$%&*?<>/\\|=+01ABCDEFXYZ"
 
 
-@animation("type", "Typewriter", "Text is typed letter by letter with a cursor", interval=0.45, usage=".type text")
+TYPE_MAX_STEPS = 16  # long texts are typed several letters per step, so they take about 5 seconds at most
+
+
+@animation("type", "Typewriter", "Text is typed letter by letter with a cursor", interval=0.3, usage=".type text")
 def typewriter(args: str) -> Iterator[str]:
     text = args or "Hi! I'm typing…"
-    step = max(1, math.ceil(len(text) / 20))
+    step = max(1, math.ceil(len(text) / TYPE_MAX_STEPS))
     for end in range(step, len(text) + step, step):
         yield text[:end] + ("▌" if end < len(text) else "")
-    yield text
 
 
 @animation("magic", "Decrypt", "Text emerges from random symbols", interval=0.5, html=True, usage=".magic text")

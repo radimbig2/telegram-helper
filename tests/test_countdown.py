@@ -68,8 +68,7 @@ async def test_plays_in_real_time(bot: Bot, telegram: FakeTelegram, clock: FakeC
     anim = get_animation("countdown")
     assert anim is not None
     engine = AnimationEngine(bot, max_frames=40)
-    engine.start(anim, "3 done", Target(FRIEND_CHAT.id, 1))
-    await engine._tasks[FRIEND_CHAT.id]
+    await engine.start(anim, "3 done", Target(FRIEND_CHAT.id, 1))
 
     edits = [params["text"] for name, params in telegram.calls if name == "EditMessageText"]
     assert edits == ["💣 3️⃣", "💣 2️⃣", "💣 1️⃣", "💥💥💥 done 💥💥💥"]
@@ -82,8 +81,7 @@ async def test_five_minutes_is_not_cut_by_the_frame_limit(
     anim = get_animation("countdown")
     assert anim is not None
     engine = AnimationEngine(bot, max_frames=40)
-    engine.start(anim, "5m", Target(FRIEND_CHAT.id, 1))
-    await engine._tasks[FRIEND_CHAT.id]
+    await engine.start(anim, "5m", Target(FRIEND_CHAT.id, 1))
 
     edits = [params["text"] for name, params in telegram.calls if name == "EditMessageText"]
     assert edits[0] == "⏳ 5:00" and edits[-1] == "💥💥💥 BOOM! 💥💥💥"
