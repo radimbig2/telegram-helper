@@ -7,3 +7,5 @@ __pycache__/
 .idea/
 .vscode/
 server.md
+.pytest_cache/
+.mypy_cache/

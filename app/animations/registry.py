@@ -1,19 +1,22 @@
 """Animation registry.
 
-To add an animation, create a module in app/animations/catalog/ with a frame generator:
+There are two kinds of animations, both live in app/animations/catalog/ and are loaded automatically:
 
-    @animation("wave", "Wave", "Waves a hand 👋")
+* Frame files (`*.json`): a fixed list of frames with a `{text}` token for the user's text.
+  This is the default choice: no code needed. See app/animations/frame_file.py for the format.
+
+* Generators (`*.py`): for animations computed by an algorithm (random, depend on the text, drawn by a formula):
+
+    @animation("wave", "Wave", "Waves a hand")
     def wave(args: str) -> Iterator[str]:
         for hand in ["👋", "🖐", "👋", "🖐"]:
             yield hand
-
-Nothing else needs registering: catalog modules are loaded automatically.
 """
 
 import importlib
-import pkgutil
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from pathlib import Path
 
 FrameFn = Callable[[str], Iterable[str]]
 
@@ -32,6 +35,18 @@ class Animation:
 
 _REGISTRY: dict[str, Animation] = {}
 _ORDERED: list[Animation] = []
+_loaded = False
+
+
+def register(anim: Animation) -> Animation:
+    """Registers an animation under `.command` and its aliases."""
+    for name in (anim.command, *anim.aliases):
+        if name in _REGISTRY:
+            raise ValueError(f"Animation command '.{name}' is already registered")
+    for name in (anim.command, *anim.aliases):
+        _REGISTRY[name] = anim
+    _ORDERED.append(anim)
+    return anim
 
 
 def animation(
@@ -44,15 +59,10 @@ def animation(
     usage: str = "",
     aliases: tuple[str, ...] = (),
 ) -> Callable[[FrameFn], FrameFn]:
-    """Decorator that registers a frame generator under `.command` and its aliases."""
+    """Decorator that registers a frame generator."""
 
     def decorator(fn: FrameFn) -> FrameFn:
-        anim = Animation(command, title, description, fn, interval, html, usage or f".{command}", aliases)
-        for name in (command, *aliases):
-            if name in _REGISTRY:
-                raise ValueError(f"Animation command '.{name}' is already registered")
-            _REGISTRY[name] = anim
-        _ORDERED.append(anim)
+        register(Animation(command, title, description, fn, interval, html, usage or f".{command}", aliases))
         return fn
 
     return decorator
@@ -67,7 +77,17 @@ def all_animations() -> list[Animation]:
 
 
 def load_catalog() -> None:
+    """Loads every animation from the catalog: generator modules and frame files, in file name order."""
+    global _loaded
+    if _loaded:
+        return
     from app.animations import catalog
+    from app.animations.frame_file import load_frame_file
 
-    for module in pkgutil.iter_modules(catalog.__path__):
-        importlib.import_module(f"{catalog.__name__}.{module.name}")
+    catalog_dir = Path(catalog.__file__).parent
+    for path in sorted(catalog_dir.iterdir(), key=lambda p: p.stem):
+        if path.suffix == ".json":
+            register(load_frame_file(path))
+        elif path.suffix == ".py" and not path.name.startswith("_"):
+            importlib.import_module(f"{catalog.__name__}.{path.stem}")
+    _loaded = True

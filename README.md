@@ -100,8 +100,9 @@ app/
 │  └─ middlewares.py        # foreign-connection guard, automatic message caching
 ├─ animations/
 │  ├─ engine.py             # plays frames by editing a message
-│  ├─ registry.py           # @animation(...) registration
-│  └─ catalog/              # the animations, loaded automatically
+│  ├─ registry.py           # registration and catalog loading
+│  ├─ frame_file.py         # JSON frame files: format and validation
+│  └─ catalog/              # the animations (*.json and *.py), loaded automatically
 ├─ services/
 │  ├─ cache.py              # saving, edits, deletions, queries, size limit
 │  ├─ media.py              # file downloads
@@ -115,7 +116,33 @@ Update flow: update → `OwnerConnectionMiddleware` (owner's connection only) �
 
 ### Adding an animation
 
-Create a module in `app/animations/catalog/`:
+Everything in `app/animations/catalog/` is loaded automatically: `.wave` works and a preview button
+appears in the panel. Pick the kind that fits.
+
+**A fixed list of frames: a JSON file, no code.** `app/animations/catalog/wave.json`
+(the file name must match the command):
+
+```json
+{
+  "command": "wave",
+  "title": "Wave",
+  "description": "Waves a hand",
+  "interval": 0.5,
+  "default_text": "Hi!",
+  "frames": ["👋", "🖐", "👋", "🖐", ["two-line", "frame"], "👋 {text}"]
+}
+```
+
+- `{text}` is replaced with the text after the command (`.wave hello`), or with `default_text`.
+  A frame with `{text}` is skipped when both are empty.
+- A frame is a string, or a list of strings for a multi-line frame.
+- Frames are plain text: the user's text is escaped, so it cannot break the markup.
+- Optional keys: `aliases`, `usage` (derived automatically). Unknown keys and typos fail at startup.
+
+Examples: `flip.json`, `clock.json`, `moon.json`.
+
+**Computed frames: a Python generator.** When the frames depend on randomness, on the user's text,
+or are drawn by a formula (`train`, `dice`, `type`, `hack`, ...):
 
 ```python
 from collections.abc import Iterator
@@ -130,7 +157,7 @@ def wave(args: str) -> Iterator[str]:
     yield f"👋 {args or 'Hi!'}"
 ```
 
-That's it: `.wave` works and a preview button appears in the panel.
+New animations are checked by the tests automatically (see below), nothing to add there.
 
 ## Running
 
@@ -146,6 +173,24 @@ Docker:
 ```bash
 docker compose up -d --build
 ```
+
+Tests and type checks:
+
+```bash
+.venv/Scripts/pip install -r requirements-dev.txt
+.venv/Scripts/python -m pytest
+.venv/Scripts/python -m mypy
+```
+
+The tests run the real dispatcher against a fake Telegram that records every Bot API call, so nothing
+is sent anywhere and the real `.env` is never read. They cover:
+
+- every animation in the catalog, with empty, long, Unicode and markup input: frame count, Telegram's
+  text limit, escaping;
+- the animation engine: editing, the delete-and-resend fallback, the frame limit, `.stop`;
+- security: outsiders get no answers and change nothing, foreign Business accounts are ignored;
+- the cache: edits, replaced media, the size limit, database migrations;
+- `.time`: parsing, time zones and daylight saving time.
 
 Deploy to the server from your machine (Git Bash on Windows). Copy `.deploy.env.example` to `.deploy.env`
 and set `DEPLOY_HOST`, then run:

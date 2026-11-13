@@ -1,0 +1,12 @@
+{
+  "command": "moon",
+  "title": "Moon",
+  "description": "Moon phases going round",
+  "interval": 0.45,
+  "default_text": "Good night",
+  "frames": [
+    "🌑🌑🌑🌑🌑", "🌒🌒🌒🌒🌒", "🌓🌓🌓🌓🌓", "🌔🌔🌔🌔🌔", "🌕🌕🌕🌕🌕", "🌖🌖🌖🌖🌖", "🌗🌗🌗🌗🌗", "🌘🌘🌘🌘🌘",
+    "🌑🌑🌑🌑🌑", "🌒🌒🌒🌒🌒", "🌓🌓🌓🌓🌓", "🌔🌔🌔🌔🌔", "🌕🌕🌕🌕🌕", "🌖🌖🌖🌖🌖", "🌗🌗🌗🌗🌗", "🌘🌘🌘🌘🌘",
+    "🌝 {text}"
+  ]
+}

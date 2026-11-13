@@ -1,0 +1,8 @@
+{
+  "command": "clock",
+  "title": "Clock",
+  "description": "The clock hands make a full circle",
+  "interval": 0.4,
+  "default_text": "Time is up!",
+  "frames": ["🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚", "🕛", "⏰ {text}"]
+}

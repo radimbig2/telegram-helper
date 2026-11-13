@@ -3,7 +3,6 @@ from collections.abc import Iterator
 
 from app.animations.registry import animation
 
-CLOCKS = ["🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚", "🕛"]
 DICE = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"]
 BALL_ANSWERS = [
     "It is certain ✅",
@@ -16,25 +15,6 @@ BALL_ANSWERS = [
     "My reply is no 👎",
     "Very doubtful 😬",
 ]
-
-
-@animation("clock", "Clock", "The clock hands make a full circle", interval=0.4)
-def clock(args: str) -> Iterator[str]:
-    yield from CLOCKS
-    yield f"⏰ {args or 'Time is up!'}"
-
-
-@animation("flip", "Table flip", "(╯°□°)╯︵ ┻━┻", interval=0.7)
-def flip(args: str) -> Iterator[str]:
-    yield "(°-°)    ┬─┬"
-    yield "(°□°)    ┬─┬"
-    yield "(╯°□°)╯  ┬─┬"
-    yield "(╯°□°)╯︵ ┻━┻"
-    yield "(╯°□°)╯︵   ┻━┻ ︵"
-    yield "(°-°)      ┻━┻"
-    yield "┬─┬ ノ( ゜-゜ノ)"
-    if args:
-        yield f"┬─┬ ノ( ゜-゜ノ)  {args}"
 
 
 @animation("8ball", "Magic 8-ball", "Answers a yes/no question", interval=0.5, usage=".8ball question", aliases=("ball",))

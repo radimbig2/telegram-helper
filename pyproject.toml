@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.mypy]
+files = ["app", "tests"]
+python_version = "3.12"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true

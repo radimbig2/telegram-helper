@@ -6,7 +6,6 @@ from app.animations.registry import animation
 SKY = "⬛"
 STAR = "✨"
 ROWS, COLS = 7, 5
-MOON_PHASES = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"]
 
 
 def _rocket_cell(r: int, c: int, rocket_row: int, stars: set[tuple[int, int]]) -> str:
@@ -26,9 +25,3 @@ def rocket(args: str) -> Iterator[str]:
         )
     yield f"🌌 {args or 'We are in space!'} 👨‍🚀"
 
-
-@animation("moon", "Moon", "Moon phases going round", interval=0.45)
-def moon(args: str) -> Iterator[str]:
-    for i in range(len(MOON_PHASES) * 2):
-        yield MOON_PHASES[i % len(MOON_PHASES)] * 5
-    yield f"🌝 {args or 'Good night'}"
